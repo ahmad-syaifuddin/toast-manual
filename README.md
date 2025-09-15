@@ -1,137 +1,183 @@
-Dokumentasi Sistem Notifikasi Toast SIDESA
-Dokumentasi ini menjelaskan cara menggunakan sistem notifikasi toast terpusat di dalam aplikasi SIDESA. Sistem ini dirancang agar konsisten, mudah digunakan, dan bisa menangani dua skenario utama: notifikasi dari aksi yang me-redirect halaman dan notifikasi dari aksi di halaman yang sama (AJAX).
+# 🍞 Toast Notification SIDESA - Gen Z Edition
 
-Teknologi yang Digunakan:
+> **TL;DR**: Cara bikin notifikasi keren di SIDESA yang gampang banget dipake. No more alert() yang cringe! ✨
 
-Backend: Livewire Events & Laravel Session Flash.
+## 🚀 What's This About?
 
-Frontend: Komponen Blade & Alpine.js.
+Jadi gini bestie, di SIDESA kita udah setup sistem notifikasi toast yang smooth banget. Basically ada dua scenario utama:
 
-1. Prasyarat & Setup (Sudah Selesai)
-Sistem ini bisa bekerja karena ada dua komponen utama yang sudah terpasang di layout app.blade.php:
+1. **Notifikasi tanpa redirect** (AJAX vibes) - buat aksi yang stay di halaman yang sama
+2. **Notifikasi dengan redirect** - buat aksi yang pindah halaman (kayak save form terus redirect)
 
-Komponen Penampil (<x-ui.alert />): Sebuah komponen Alpine.js yang bertugas menampilkan notifikasi saat menerima event flash-message-display.
+## 🛠️ Tech Stack (Yang Udah Ada)
 
-"Jembatan" Session-ke-Event: Sebuah blok kode Blade/Alpine yang bertugas memeriksa session() setelah redirect dan mengubahnya menjadi event flash-message-display.
+- **Backend**: Livewire Events + Laravel Session Flash (solid combo fr)
+- **Frontend**: Blade Components + Alpine.js (chef's kiss 👌)
 
-<!-- Contoh di app.blade.php -->
+## 📦 Setup (Already Done, No Worries)
 
+Udah ada 2 komponen yang jalan di background:
+
+1. **Komponen Penampil** (`<x-ui.alert />`) - yang nampilin notifikasi
+2. **"Bridge" Session-to-Event** - yang convert session flash jadi event
+
+```php
+<!-- Udah dipasang di app.blade.php -->
 <main>
-    {{-- Jembatan dari Session ke Alpine Event --}}
+    {{-- Bridge dari Session ke Alpine Event --}}
     @php
         $flashMessage = session('success') ?? session('error');
-        $flashType = session()->has('success') ? 'success' : (session()->has('error') ? 'error' : null);
+        $flashType = session()->has('success') ? 'success' : 
+                    (session()->has('error') ? 'error' : null);
     @endphp
     @if($flashMessage && $flashType)
-        <div x-data x-init="$dispatch('flash-message-display', [{ message: @js($flashMessage), type: @js($flashType) }])"></div>
+        <div x-data x-init="$dispatch('flash-message-display', 
+             [{ message: @js($flashMessage), type: @js($flashType) }])">
+        </div>
     @endif
 
     {{ $slot }}
 </main>
+```
 
-2. Cara Penggunaan
-Ada dua cara untuk memicu notifikasi, tergantung pada jenis aksi yang Anda lakukan.
+## 💡 How To Use (The Real Deal)
 
-Kasus 1: Notifikasi untuk Aksi TANPA Redirect (AJAX)
-Gunakan metode ini untuk aksi yang terjadi di halaman yang sama, seperti menghapus data dari tabel, mengubah status, dll.
+### Scenario 1: AJAX Actions (No Redirect) 🔄
 
-Metode: Gunakan $this->dispatch() dari dalam komponen Livewire Anda.
+**Use Case**: Delete data, update status, basically any action yang stay di halaman yang sama.
 
-Contoh (dari Users/Index.php):
+**Method**: Pake `$this->dispatch()` dari Livewire component
 
+```php
 <?php
-
-namespace App\Livewire\Users;
-
-// ...
+// Example dari Users/Index.php
 
 class Index extends Component
 {
     public function delete(User $user)
     {
+        // Kalo user mau delete diri sendiri (big no no)
         if ($user->id === Auth::id()) {
-            // Kirim event dengan tipe 'error'
+            // Kirim error toast
             $this->dispatch('flash-message-display', [
-                'message' => 'Anda tidak dapat menghapus akun Anda sendiri.', 
+                'message' => 'Gabisa delete akun sendiri dong bestie! 🤦‍♂️', 
                 'type' => 'error'
             ]);
-            return;
+            return; // Stop execution
         }
 
         $user->delete();
         
-        // Kirim event dengan tipe 'success'
+        // Success toast
         $this->dispatch('flash-message-display', [
-            'message' => 'Pengguna berhasil dihapus.', 
+            'message' => 'User berhasil dihapus! Bye bye~ 👋', 
             'type' => 'success'
         ]);
     }
 }
+```
 
-Kasus 2: Notifikasi untuk Aksi DENGAN Redirect
-Gunakan metode ini untuk aksi yang akan mengalihkan pengguna ke halaman lain, seperti menyimpan form Tambah atau Edit data.
+### Scenario 2: Redirect Actions 🔀
 
-Metode: Gunakan session()->flash() standar dari Laravel.
+**Use Case**: Save form terus redirect, basically any action yang pindah halaman.
 
-Contoh (dari Users/Form.php):
+**Method**: Pake `session()->flash()` Laravel standard
 
+```php
 <?php
-
-namespace App\Livewire\Users;
-
-// ...
+// Example dari Users/Form.php
 
 class Form extends Component
 {
     public function save()
     {
-        // ... logika validasi dan simpan data ...
+        // Validasi & save logic here...
 
         if ($this->isEditMode) {
             $this->user->update($validated);
-            // Simpan pesan sukses ke session
-            session()->flash('success', 'Pengguna berhasil diperbarui.');
+            // Flash message buat redirect
+            session()->flash('success', 'User berhasil diupdate! Fresh banget! ✨');
         } else {
             User::create($validated);
-            // Simpan pesan sukses ke session
-            session()->flash('success', 'Pengguna berhasil ditambahkan.');
+            session()->flash('success', 'User baru berhasil ditambahin! Welcome to the club! 🎉');
         }
 
         return $this->redirect(route('users.index'), navigate: true);
     }
 }
+```
 
-3. Menambah Tipe Notifikasi Baru (Contoh: 'Warning')
-Jika di masa depan Anda butuh tipe notifikasi baru (misalnya 'warning' dengan warna kuning), Anda hanya perlu melakukan dua hal:
+## 🎨 Adding New Notification Types
 
-Langkah 1: Kirim Tipe yang Benar
-Saat memanggil notifikasi, gunakan type: 'warning'.
+Mau nambahin tipe baru kayak 'warning'? Ez pz lemon squeezy:
 
-// Contoh untuk dispatch
-$this->dispatch('flash-message-display', ['message' => 'Ini adalah peringatan.', 'type' => 'warning']);
+### Step 1: Send the Right Type
 
-// Contoh untuk session
-session()->flash('warning', 'Ini adalah peringatan.'); // Anda perlu update "Jembatan" di app.blade.php
+```php
+// Buat dispatch (AJAX)
+$this->dispatch('flash-message-display', [
+    'message' => 'Hati-hati bestie, ini warning! ⚠️', 
+    'type' => 'warning'
+]);
 
-Langkah 2: Update Komponen <x-ui.alert />
-Buka resources/views/components/ui/alert.blade.php untuk menambahkan styling dan ikon baru.
+// Buat session (Redirect)
+session()->flash('warning', 'Ini warning message!');
+// Note: Lu perlu update bridge di app.blade.php buat handle 'warning'
+```
 
-Contoh Perubahan:
+### Step 2: Update Alert Component
 
-<!-- 1. Tambahkan class binding baru di div utama -->
+Buka `resources/views/components/ui/alert.blade.php` dan tambahin styling:
+
+```html
+<!-- Update class binding -->
 :class="{ 
     'bg-green-500': type === 'success', 
     'bg-red-500': type === 'error',
-    'bg-amber-500': type === 'warning'  // <-- Tambahkan ini
+    'bg-amber-500': type === 'warning'  // 👈 New kid on the block
 }"
 
-<!-- ... -->
-
-<!-- 2. Tambahkan blok ikon baru di dalam div utama -->
-<!-- Ikon Warning (Heroicons) -->
+<!-- Tambahin icon warning -->
 <div x-show="type === 'warning'">
-    <!-- Ganti dengan SVG ikon warning yang sesuai -->
-    <svg class="w-6 h-6 text-white" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+    <!-- Warning icon SVG here -->
+    <svg class="w-6 h-6 text-white" xmlns="http://www.w3.org/2000/svg" 
+         fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" 
+            d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
     </svg>
 </div>
+```
+
+## 📝 Quick Reference
+
+| Scenario | Method | Example |
+|----------|---------|---------|
+| **AJAX (No Redirect)** | `$this->dispatch()` | Delete, Update Status |
+| **Redirect** | `session()->flash()` | Save Form, Create Data |
+
+## 💭 Pro Tips
+
+- **Message Types**: `success`, `error` (available), `warning` (need setup)
+- **Keep it short**: Toast messages should be concise tapi informative
+- **Use emojis**: Bikin message lebih engaging (but don't overdo it)
+- **Test both scenarios**: Make sure AJAX dan redirect works properly
+
+## 🐛 Common Issues
+
+1. **Toast gak muncul setelah redirect?** 
+   - Check bridge di app.blade.php
+   - Make sure session flash key match
+
+2. **AJAX toast gak muncul?**
+   - Check console buat errors
+   - Make sure event name spelling correct
+
+3. **Styling aneh?**
+   - Check alert component styling
+   - Make sure Alpine.js loaded properly
+
+---
+
+**Happy coding bestie!** 🚀✨
+
+*P.S: Kalo ada yang bingung, just ask. We're all learning together! 💪*
